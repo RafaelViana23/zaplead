@@ -1,197 +1,211 @@
+/* ================= CONFIGURAÇÕES SUPABASE ================= */
 const SUPABASE_URL = "https://fhwxvmgtojaqnuzgctio.supabase.co";
 const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZod3h2bWd0b2phcW51emdjdGlvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzA3NzI5OTQsImV4cCI6MjA4NjM0ODk5NH0.J_nT8uhCl1ShCNdtIKYOHu0ANu2emfPrQQggKMdRHsM";
 
 const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
+/* ================= VARIÁVEIS GLOBAIS ================= */
 let currentUser = null;
+let editingLeadId = null; // Para controle de edição
+const appRoot = document.getElementById("appRoot");
 const content = document.getElementById("content");
 const pageTitle = document.getElementById("pageTitle");
-const links = document.querySelectorAll(".sidebar nav a");
 
-/* ================= NAVEGAÇÃO ================= */
-links.forEach(link => {
+/* ================= INICIALIZAÇÃO E NAVEGAÇÃO ================= */
+document.querySelectorAll(".sidebar nav a").forEach(link => {
     link.addEventListener("click", e => {
         e.preventDefault();
-        links.forEach(l => l.classList.remove("active"));
+        document.querySelectorAll(".sidebar nav a").forEach(l => l.classList.remove("active"));
         link.classList.add("active");
         loadPage(link.dataset.page);
     });
 });
 
-function loadPage(page) {
+async function loadPage(page) {
     if (!currentUser) return showLogin();
-    content.innerHTML = '<p style="text-align:center; opacity:0.5;">Carregando...</p>';
+    
+    editingLeadId = null; // Reseta edição ao mudar de página
+    appRoot.classList.remove("logged-out");
+    content.innerHTML = '<div style="opacity:0.5; padding:20px;">Carregando...</div>';
 
-    if (page === "dashboard") showDashboard();
-    if (page === "ai") showAIConfig();
-    if (page === "leads") showLeads();
-    if (page === "integrations") showIntegrations();
+    switch(page) {
+        case "dashboard": await showDashboard(); break;
+        case "ai": await showAIConfig(); break;
+        case "leads": await showLeads(); break;
+        case "integrations": showIntegrations(); break;
+    }
+}
+
+/* ================= AUTENTICAÇÃO (LOGIN E CADASTRO) ================= */
+async function checkUser() {
+    const { data } = await supabaseClient.auth.getUser();
+    if (data?.user) {
+        currentUser = data.user;
+        document.getElementById("userEmail").innerText = currentUser.email;
+        
+        document.getElementById("logoutBtn").onclick = async () => {
+            await supabaseClient.auth.signOut();
+            location.reload();
+        };
+        
+        loadPage("dashboard");
+    } else {
+        showLogin();
+    }
+}
+
+function showLogin(isSignUp = false) {
+    appRoot.classList.add("logged-out");
+    pageTitle.innerText = "";
+    
+    const title = isSignUp ? "Criar Conta ZapLead" : "Acessar ZapLead";
+    const btnText = isSignUp ? "Registrar Agora" : "Entrar no Sistema";
+    const toggleText = isSignUp ? "Já tem conta? Faça Login" : "Não tem conta? Cadastre-se grátis";
+
+    content.innerHTML = `
+      <div class="panel" style="max-width:380px; width:100%;">
+        <h2 style="text-align:center; margin-bottom:20px; color:#38bdf8;">${title}</h2>
+        <label>E-mail</label>
+        <input type="email" id="email" placeholder="seu@email.com">
+        <label style="margin-top:15px;">Senha</label>
+        <input type="password" id="password" placeholder="••••••••">
+        <button id="authBtn" style="width:100%; margin-top:25px;">${btnText}</button>
+        <p id="toggleAuth" style="color:#38bdf8; font-size:13px; margin-top:20px; text-align:center; cursor:pointer; text-decoration:underline;">
+            ${toggleText}
+        </p>
+        <p id="msg" style="color:#ef4444; font-size:13px; margin-top:15px; text-align:center;"></p>
+      </div>`;
+
+    document.getElementById("toggleAuth").onclick = () => showLogin(!isSignUp);
+
+    document.getElementById("authBtn").onclick = async () => {
+        const email = document.getElementById("email").value;
+        const password = document.getElementById("password").value;
+        const msg = document.getElementById("msg");
+
+        if (isSignUp) {
+            const { data, error } = await supabaseClient.auth.signUp({ email, password });
+            if (error) msg.innerText = "Erro: " + error.message;
+            else alert("Sucesso! Verifique seu e-mail (se habilitado) ou tente logar.");
+        } else {
+            const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+            if (error) msg.innerText = "E-mail ou senha incorretos.";
+            else { currentUser = data.user; checkUser(); }
+        }
+    };
 }
 
 /* ================= DASHBOARD ================= */
 async function showDashboard() {
-    pageTitle.textContent = "Dashboard";
+    pageTitle.innerText = "Resumo Geral";
     const { count } = await supabaseClient.from("leads").select("*", { count: "exact", head: true }).eq("user_id", currentUser.id);
-
+    
     content.innerHTML = `
-    <section class="cards" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
-      <div class="card"><h3 style="color: #94a3b8; font-size: 14px;">Status</h3><p style="color: #22c55e; font-weight: bold; margin-top: 10px;">🟢 Conectado</p></div>
-      <div class="card"><h3 style="color: #94a3b8; font-size: 14px;">Total Leads</h3><p style="font-size: 32px; font-weight: bold; margin-top: 10px;">${count || 0}</p></div>
-      <div class="card"><h3 style="color: #94a3b8; font-size: 14px;">Logout</h3><button id="logoutBtn" style="background:#ef4444; margin-top:10px; width:100%">Sair do Sistema</button></div>
-    </section>`;
-
-    document.getElementById("logoutBtn").onclick = handleLogout;
+    <div class="grid-container">
+        <div class="card"><label>Status</label><h2 style="color:#22c55e;">🟢 Online</h2></div>
+        <div class="card"><label>Total de Leads</label><h2>${count || 0}</h2></div>
+        <div class="card"><label>IA Ativa</label><h2>Sim</h2></div>
+    </div>`;
 }
 
-/* ================= GESTÃO DE LEADS (COM DELETE) ================= */
+/* ================= GESTÃO DE LEADS (CRUD) ================= */
 async function showLeads() {
-    pageTitle.textContent = "Leads Capturados";
+    pageTitle.innerText = "Gestão de Leads";
     const { data: leads } = await supabaseClient.from("leads").select("*").eq("user_id", currentUser.id).order("created_at", { ascending: false });
 
-    let rows = leads?.map(lead => `
-      <tr>
-        <td>${lead.name}</td>
-        <td>${lead.phone}</td>
-        <td><span style="background: rgba(59, 130, 246, 0.1); color: #60a5fa; padding: 4px 8px; border-radius: 4px; font-size: 12px;">${lead.interest || 'Geral'}</span></td>
-        <td style="color: #64748b;">${new Date(lead.created_at).toLocaleDateString()}</td>
-        <td><button class="delete-btn" data-id="${lead.id}" style="background:transparent; color:#ef4444; border:1px solid #ef4444; padding: 4px 8px; font-size:12px;">Apagar</button></td>
-      </tr>`).join("");
+    let rows = leads?.map(l => `
+        <tr>
+            <td>${l.name}</td>
+            <td>${l.phone}</td>
+            <td><span style="color:#38bdf8">${l.interest || 'Geral'}</span></td>
+            <td>
+                <button style="background:#f59e0b; padding:5px 10px; font-size:11px; margin-right:5px;" onclick="editLead('${l.id}', '${l.name}', '${l.phone}', '${l.interest || ''}')">Editar</button>
+                <button class="btn-logout" style="padding:5px 10px; font-size:11px" onclick="deleteLead('${l.id}')">Excluir</button>
+            </td>
+        </tr>`).join("") || "<tr><td colspan='4' style='text-align:center; opacity:0.5;'>Nenhum lead encontrado.</td></tr>";
 
     content.innerHTML = `
-      <section class="panel">
-        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: end; margin-bottom: 40px; background: rgba(255,255,255,0.02); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.05);">
-          <input type="text" id="newLeadName" placeholder="Nome">
-          <input type="text" id="newLeadPhone" placeholder="WhatsApp">
-          <input type="text" id="newLeadInterest" placeholder="Interesse">
-          <button id="addLeadBtn" style="height: 44px;">Add Lead</button>
+    <div class="panel">
+        <h3 id="formTitle" style="margin-bottom:20px; font-size:16px;">Novo Lead Manual</h3>
+        <div class="form-row">
+            <div class="form-group"><label>Nome</label><input type="text" id="ln"></div>
+            <div class="form-group"><label>WhatsApp</label><input type="text" id="lp"></div>
+            <div class="form-group"><label>Interesse</label><input type="text" id="li"></div>
+            <button id="btnSave" style="height: 44px;">+ Adicionar</button>
+            <button id="btnCancel" style="height: 44px; background:transparent; border:1px solid #334155; display:none;">Cancelar</button>
         </div>
         <table class="table">
-          <thead><tr><th>Nome</th><th>Telefone</th><th>Interesse</th><th>Data</th><th>Ação</th></tr></thead>
-          <tbody>${rows || "<tr><td colspan='5' style='text-align:center;'>Nenhum lead encontrado</td></tr>"}</tbody>
+            <thead><tr><th>Nome</th><th>WhatsApp</th><th>Interesse</th><th>Ações</th></tr></thead>
+            <tbody>${rows}</tbody>
         </table>
-      </section>`;
+    </div>`;
 
-    // Lógica para Adicionar
-    document.getElementById("addLeadBtn").onclick = async () => {
-        const { error } = await supabaseClient.from("leads").insert([{ 
-            name: document.getElementById("newLeadName").value, 
-            phone: document.getElementById("newLeadPhone").value, 
-            interest: document.getElementById("newLeadInterest").value,
-            user_id: currentUser.id 
-        }]);
-        if (error) alert(error.message); else showLeads();
-    };
-
-    // Lógica para Apagar (Event Delegation)
-    document.querySelectorAll(".delete-btn").forEach(btn => {
-        btn.onclick = async () => {
-            if (confirm("Tem a certeza que deseja eliminar este lead?")) {
-                const id = btn.dataset.id;
-                const { error } = await supabaseClient.from("leads").delete().eq("id", id);
-                if (error) alert(error.message); else showLeads();
-            }
+    document.getElementById("btnSave").onclick = async () => {
+        const payload = {
+            name: document.getElementById("ln").value,
+            phone: document.getElementById("lp").value,
+            interest: document.getElementById("li").value,
+            user_id: currentUser.id
         };
-    });
+
+        if(!payload.name || !payload.phone) return alert("Preencha Nome e WhatsApp!");
+
+        if (editingLeadId) {
+            await supabaseClient.from("leads").update(payload).eq("id", editingLeadId);
+            editingLeadId = null;
+        } else {
+            await supabaseClient.from("leads").insert([payload]);
+        }
+        showLeads();
+    };
+
+    document.getElementById("btnCancel").onclick = () => { editingLeadId = null; showLeads(); };
 }
 
-/* ================= CONFIG IA (LAYOUT MELHORADO) ================= */
+window.editLead = (id, name, phone, interest) => {
+    editingLeadId = id;
+    document.getElementById("ln").value = name;
+    document.getElementById("lp").value = phone;
+    document.getElementById("li").value = interest;
+    document.getElementById("formTitle").innerText = "Editando: " + name;
+    document.getElementById("btnSave").innerText = "Salvar Alterações";
+    document.getElementById("btnSave").style.background = "#f59e0b";
+    document.getElementById("btnCancel").style.display = "inline-block";
+    document.getElementById("formTitle").scrollIntoView({ behavior: 'smooth' });
+};
+
+window.deleteLead = async (id) => {
+    if(confirm("Excluir este lead permanentemente?")) {
+        await supabaseClient.from("leads").delete().eq("id", id);
+        showLeads();
+    }
+};
+
+/* ================= CONFIG IA ================= */
 async function showAIConfig() {
-    pageTitle.textContent = "Configurar Atendente IA";
-    const { data } = await supabaseClient
-        .from("settings")
-        .select("*")
-        .eq("user_id", currentUser.id)
-        .maybeSingle();
+    pageTitle.innerText = "Treinamento da IA";
+    const { data } = await supabaseClient.from("settings").select("*").eq("user_id", currentUser.id).maybeSingle();
 
     content.innerHTML = `
-    <section class="panel">
-      <div style="max-width: 650px;">
-        <h2 style="margin-bottom: 25px; font-size: 1.2rem; color: #38bdf8;">Personalidade da IA</h2>
-        
-        <div style="margin-bottom: 20px;">
-          <label style="display: block; font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
-            Mensagem de Boas-Vindas
-          </label>
-          <textarea id="welcomeMsg" rows="3" placeholder="Ex: Olá! Sou o assistente virtual da ZapLead. Em que posso ajudar hoje?">${data?.welcome_message || ""}</textarea>
-          <p style="font-size: 12px; color: #64748b; margin-top: 6px;">Essa é a primeira mensagem que o cliente receberá no WhatsApp.</p>
-        </div>
+    <div class="panel" style="max-width:700px">
+        <label>Sobre o seu Negócio</label>
+        <textarea id="bi" rows="8" placeholder="Ex: Somos uma imobiliária que vende casas no interior...">${data?.business_info || ""}</textarea>
+        <button id="svAI" style="width:100%; margin-top:20px;">Salvar Treinamento</button>
+    </div>`;
 
-        <div style="margin-bottom: 25px;">
-          <label style="display: block; font-size: 13px; font-weight: 600; color: #94a3b8; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
-            Sobre seu negócio (Contexto)
-          </label>
-          <textarea id="businessInfo" rows="6" placeholder="Ex: Somos uma imobiliária em São Paulo especializada em aluguéis de luxo. Nossos horários são...">${data?.business_info || ""}</textarea>
-          <p style="font-size: 12px; color: #64748b; margin-top: 6px;">Ensine a IA sobre seus produtos, preços e horários para que ela responda com precisão.</p>
-        </div>
-
-        <button id="saveSettings" style="width: 100%; max-width: 250px; padding: 14px; font-size: 14px;">
-          Gravar Configurações
-        </button>
-      </div>
-    </section>`;
-
-    document.getElementById("saveSettings").onclick = async () => {
-        const btn = document.getElementById("saveSettings");
-        const originalText = btn.innerText;
-        
-        btn.innerText = "Salvando alterações...";
-        btn.style.opacity = "0.7";
-        btn.disabled = true;
-
-        const { error } = await supabaseClient.from("settings").upsert({
-            user_id: currentUser.id,
-            welcome_message: document.getElementById("welcomeMsg").value,
-            business_info: document.getElementById("businessInfo").value
+    document.getElementById("svAI").onclick = async () => {
+        await supabaseClient.from("settings").upsert({ 
+            user_id: currentUser.id, 
+            business_info: document.getElementById("bi").value 
         });
-
-        setTimeout(() => {
-            btn.innerText = originalText;
-            btn.style.opacity = "1";
-            btn.disabled = false;
-            if (error) alert("Erro ao salvar: " + error.message);
-            else alert("Configurações salvas com sucesso! ✨");
-        }, 800);
+        alert("IA Treinada!");
     };
 }
 
-/* ================= INTEGRAÇÕES ================= */
 function showIntegrations() {
-    pageTitle.textContent = "Integrações";
-    content.innerHTML = `<section class="panel" style="text-align:center; padding:40px;"><h2>Em breve</h2><p>Conexão direta com API do WhatsApp.</p></section>`;
+    pageTitle.innerText = "Conexões";
+    content.innerHTML = `<div class="panel" style="text-align:center; padding:50px;"><h3>WhatsApp QR Code</h3><p style="opacity:0.6; margin-top:10px;">Integração em desenvolvimento para a versão 2.0.</p></div>`;
 }
 
-/* ================= LOGIN & SESSÃO ================= */
-function showLogin() {
-    pageTitle.textContent = "Acesso";
-    content.innerHTML = `
-      <div class="panel" style="max-width:400px; margin: 40px auto;">
-        <h2>Entrar</h2>
-        <input type="email" id="email" placeholder="E-mail" />
-        <input type="password" id="password" placeholder="Senha" />
-        <button id="loginBtn" style="width: 100%; margin-top: 10px;">Entrar</button>
-        <p id="msg" style="color: #ef4444; text-align: center; margin-top: 10px;"></p>
-      </div>`;
-
-    document.getElementById("loginBtn").onclick = async () => {
-        const { data, error } = await supabaseClient.auth.signInWithPassword({
-            email: document.getElementById("email").value,
-            password: document.getElementById("password").value
-        });
-        if (error) document.getElementById("msg").innerText = error.message;
-        else { currentUser = data.user; loadPage("dashboard"); }
-    };
-}
-
-async function handleLogout() {
-    await supabaseClient.auth.signOut();
-    currentUser = null;
-    showLogin();
-}
-
-async function checkUser() {
-    const { data } = await supabaseClient.auth.getUser();
-    if (data?.user) { currentUser = data.user; loadPage("dashboard"); }
-    else showLogin();
-}
-
+/* ================= START ================= */
 checkUser();
