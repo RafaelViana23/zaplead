@@ -1,3 +1,6 @@
+/* ==========================================================================
+   CONFIGURAÇÕES GERAIS
+   ========================================================================== */
 * {
   margin: 0;
   padding: 0;
@@ -5,127 +8,193 @@
   font-family: 'Inter', sans-serif;
 }
 
-body {
-  background: linear-gradient(135deg, #0f172a, #1e293b);
-  color: #f1f5f9;
-  height: 100vh;
+:root {
+  --bg-dark: #0f172a;
+  --bg-panel: rgba(30, 41, 59, 0.5);
+  --accent: #38bdf8;
+  --text-main: #f1f5f9;
+  --text-muted: #94a3b8;
+  --border: rgba(255, 255, 255, 0.05);
+  --danger: #ef4444;
+  --primary: #2563eb;
 }
 
+body {
+  background: linear-gradient(135deg, var(--bg-dark), #1e293b);
+  color: var(--text-main);
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ==========================================================================
+   ESTRUTURA DO APP (SIDEBAR + MAIN)
+   ========================================================================== */
 .app {
   display: flex;
   height: 100vh;
+  width: 100vw;
 }
 
-/* SIDEBAR */
+/* Caso o usuário não esteja logado, esconde a sidebar e centraliza o conteúdo */
+.app.logged-out .sidebar {
+  display: none;
+}
+
+.app.logged-out .main {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* ==========================================================================
+   SIDEBAR (MENU LATERAL)
+   ========================================================================== */
 .sidebar {
-  width: 240px;
+  width: 260px;
   background: rgba(15, 23, 42, 0.95);
   padding: 30px 20px;
-  border-right: 1px solid rgba(255,255,255,0.05);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar h2 {
-  color: #38bdf8;
+  color: var(--accent);
+  text-align: center;
   margin-bottom: 30px;
+  letter-spacing: -1px;
 }
 
 .sidebar nav {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  flex: 1; /* Faz o nav ocupar o espaço disponível e empurra o footer para baixo */
 }
 
 .sidebar nav a {
-  color: #cbd5e1;
+  color: var(--text-muted);
   text-decoration: none;
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 12px 16px;
+  border-radius: 10px;
+  font-size: 14px;
   transition: 0.2s;
+  font-weight: 500;
 }
 
-.sidebar nav a:hover,
+.sidebar nav a:hover, 
 .sidebar nav a.active {
-  background: #2563eb;
-  color: white;
+  background: rgba(56, 189, 248, 0.1);
+  color: var(--accent);
 }
 
-/* MAIN */
-main {
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+#userEmail {
+  font-size: 11px;
+  color: #64748b;
+  text-align: center;
+  word-break: break-all;
+}
+
+/* ==========================================================================
+   MAIN CONTENT
+   ========================================================================== */
+.main {
   flex: 1;
   padding: 40px;
   overflow-y: auto;
 }
 
-h1 {
-  margin-bottom: 20px;
+#pageTitle {
+  font-size: 1.8rem;
+  margin-bottom: 30px;
+  font-weight: 700;
 }
 
-.card, .panel {
-  background: rgba(30, 41, 59, 0.7);
-  padding: 20px;
+/* ==========================================================================
+   SISTEMA DE GRIDS E FLEX (PARA NÃO FICAR GRUDADO)
+   ========================================================================== */
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 25px; /* Espaço entre os cards */
+  margin-bottom: 30px;
+}
+
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 15px; /* Espaço entre os inputs */
+  align-items: flex-end;
+  margin-bottom: 30px;
+}
+
+.form-group {
+  flex: 1;
+  min-width: 180px;
+}
+
+/* ==========================================================================
+   COMPONENTES (CARDS, PAINÉIS, BOTÕES)
+   ========================================================================== */
+.panel {
+  background: var(--bg-panel);
+  backdrop-filter: blur(10px);
+  padding: 30px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+}
+
+.card {
+  background: var(--bg-panel);
+  padding: 25px;
   border-radius: 12px;
-  margin-bottom: 20px;
+  border: 1px solid var(--border);
 }
 
-/* Melhora nos Inputs */
-textarea, input, select {
+label {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+input, textarea {
   width: 100%;
-  padding: 12px 16px;
-  background: rgba(15, 23, 42, 0.6); /* Fundo mais escuro e semi-transparente */
+  padding: 12px;
+  background: rgba(15, 23, 42, 0.8);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 8px;
-  color: #fff !important; /* Texto sempre branco */
-  font-size: 14px;
-  transition: all 0.2s;
-}
-
-textarea:focus, input:focus, select:focus {
-  outline: none;
-  border-color: #3b82f6;
-  background: rgba(15, 23, 42, 0.9);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
-}
-
-/* Tabela Estilizada */
-.table {
-  width: 100%;
-  border-collapse: separate;
-  border-spacing: 0;
-  margin-top: 20px;
-}
-
-.table th {
-  background: rgba(255, 255, 255, 0.03);
-  padding: 12px 15px;
-  text-align: left;
-  font-size: 12px;
-  text-transform: uppercase;
-  letter-spacing: 1px;
-  color: #94a3b8;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.table td {
-  padding: 16px 15px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  font-size: 14px;
-  color: #e2e8f0;
-}
-
-.table tr:hover td {
-  background: rgba(255, 255, 255, 0.02);
-}
-
-/* Botão Principal */
-button {
-  background: #2563eb;
-  padding: 10px;
-  border-radius: 10px;
-  border: #fff;
   color: #fff;
+  transition: 0.2s;
+}
+
+input:focus, textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.2);
+}
+
+button {
+  background: var(--primary);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
   font-weight: 600;
-  letter-spacing: 0.5px;
-  transition: transform 0.1s, background 0.2s;
+  cursor: pointer;
+  transition: 0.2s;
 }
 
 button:hover {
@@ -133,6 +202,39 @@ button:hover {
   transform: translateY(-1px);
 }
 
-button:active {
-  transform: translateY(0);
+.btn-logout {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--danger);
+  border: 1px solid rgba(239, 68, 68, 0.2);
 }
+
+.btn-logout:hover {
+  background: rgba(239, 68, 68, 0.2);
+  transform: none;
+}
+
+/* ==========================================================================
+   TABELAS
+   ========================================================================== */
+.table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.table th {
+  text-align: left;
+  padding: 12px;
+  color: var(--text-muted);
+  font-size: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.table td {
+  padding: 15px 12px;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.02);
+}
+
+/* Scrollbar fina */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
